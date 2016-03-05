@@ -14,18 +14,18 @@
  * config file
  */
 
-$host = 'localhost';
+$host = '';
 $version = '1.0.0';
 $date = date('Y-m-d H:i:s');
 
-$host1 = 'localhost';
-$user1 = 'root';
-$password1 = 'root';
-$database1 = 'nn_cms_ql';
+$host1 = '';
+$user1 = '';
+$password1 = '';
+$database1 = '';
 
-$host2 = 'localhost';
-$user2 = 'root';
-$password2 = 'root';
-$database2 = 'nn_cms_jpz';
+$host2 = '';
+$user2 = '';
+$password2 = '';
+$database2 = '';
 
 $fileName = 'patch.sql';
