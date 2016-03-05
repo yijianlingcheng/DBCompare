@@ -18,10 +18,12 @@ define('INTERLACED', '-- ------------------------------------------------------'
 
 if(php_sapi_name() === 'cli')
 {
+    define('ENV', 'cli');
     $wrap = "\n";
 }
 else
 {
+    define('ENV', 'web');
     $wrap = '<br>';
 }
 
@@ -93,6 +95,9 @@ if(is_array($list1) && count($list1) > 0)
         }
         unset($list1[$key]);
     }
+    unset($key);
+    unset($value);
+    unset($item);
 }
 else
 {
@@ -110,6 +115,9 @@ if(is_array($list2) && count($list2) > 0)
         }
         unset($list2[$key]);
     }
+    unset($key);
+    unset($value);
+    unset($item);
 }
 
 ob_start();
@@ -124,6 +132,8 @@ if(!empty($diffFromServer1ToServer2) && is_array($diffFromServer1ToServer2))
     {
         echo '-- TABLE: ' . $item . $wrap;
     }
+    unset($key);
+    unset($item);
     echo INTERLACED . $wrap . $wrap . $wrap;
 }
 
@@ -136,6 +146,9 @@ if(!empty($diffFromServer2ToServer1) && is_array($diffFromServer2ToServer1))
     {
         echo '-- TABLE: ' . $item . $wrap;
     }
+    unset($key);
+    unset($item);
+    unset($diffFromServer2ToServer1);
     echo INTERLACED . $wrap . $wrap . $wrap;
 }
 
@@ -158,13 +171,164 @@ if(is_array($diffFromServer1ToServer2) && !empty($diffFromServer1ToServer2))
         }
         catch(Exception $e)
         {
+            ob_end_clean();
             die($e->getMessage());
         }
     }
+    unset($key);
+    unset($item);
+    unset($diffFromServer1ToServer2);
 }
+
+$sameFromServer1ToServer2 = array_intersect($tableList1, $tableList2);
+if(!is_array($sameFromServer1ToServer2) || empty($sameFromServer1ToServer2))
+{
+    unset($tableList2);
+    unset($tableList1);
+    unset($sameFromServer1ToServer2);
+}
+else
+{
+    //compare table Structured
+    foreach($sameFromServer1ToServer2 as $key => $value)
+    {
+        $tmp1 = $db1->query("SHOW FULL COLUMNS FROM $value");
+        $tmp2 = $db2->query("SHOW FULL COLUMNS FROM $value");
+        if(count($tmp1) < count($tmp2))
+        {
+            $tmpIds = array();
+            foreach($tmp1 as $node => $item)
+            {
+                $tmpIds[] = $item['Field'];
+            }
+            unset($node);
+            unset($node);
+            foreach($tmp2 as $node => $item)
+            {
+                if(!isset($tmpIds[$item['Field']]))
+                {
+                    echo " DROP COLUMN `$item[Field]` ," . $wrap;
+                    unset($tmp2[$node]);
+                }
+            }
+            unset($tmpIds);
+            unset($node);
+            unset($node);
+        }
+        $name = $tmp1[0]['Field'];
+        if($tmp1 != $tmp2)
+        {
+            echo INTERLACED . $wrap;
+            echo '-- Alter table `' . $value . '`' . $wrap;
+            echo INTERLACED . $wrap;
+            echo "ALTER TABLE `$value` " . $wrap;
+        }
+        $desc = '';
+        foreach($tmp1 as $node => $item)
+        {
+            if(isset($tmp2[$node]))
+            {
+                if($tmp2[$node] == $item)
+                {
+                    continue;
+                }
+                else
+                {
+                    if($tmp2[$node]['Field'] != $item['Field'])
+                    {
+                        $desc .= " ADD COLUMN `$item[Field]` " . $item['Type'];
+                        if(strpos($item['Type'], 'char') !== false || strpos($item['Type'], 'text') !== false)
+                        {
+                            $desc .= " COLLATE $item[Collation]";
+                        }
+                        if($item['Null'] == 'NO')
+                        {
+                            $desc .= " NOT NULL DEFAULT $item[Default]";
+                        }
+                        else
+                        {
+                            $desc .= " NULL";
+                        }
+                        if(!empty($item['Comment']))
+                        {
+                            $desc .= " COMMENT $item[Comment]";
+                        }
+                        $desc .= " after $name ," . $wrap;
+                    }
+                    else
+                    {
+                        $desc .= " CHANGE COLUMN `$item[Field]` " . $item['Type'];
+                        if(strpos($item['Type'], 'char') !== false || strpos($item['Type'], 'text') !== false)
+                        {
+                            $desc .= " COLLATE $item[Collation]";
+                        }
+                        if($item['Null'] == 'NO')
+                        {
+                            $desc .= " NOT NULL DEFAULT '$item[Default]'";
+                        }
+                        else
+                        {
+                            $desc .= " NULL";
+                        }
+                        if(!empty($item['Comment']))
+                        {
+                            $desc .= " COMMENT '$item[Comment]'";
+                        }
+                        $desc .= " after `$name` ," . $wrap;
+                    }
+                }
+            }
+            else
+            {
+                $desc .= " ADD COLUMN `$item[Field]` " . $item['Type'];
+                if(strpos($item['Type'], 'char') !== false || strpos($item['Type'], 'text') !== false)
+                {
+                    $desc .= " COLLATE $item[Collation]";
+                }
+                if($item['Null'] == 'NO')
+                {
+                    $desc .= " NOT NULL DEFAULT $item[Default]";
+                }
+                else
+                {
+                    $desc .= " NULL";
+                }
+                if(!empty($item['Comment']))
+                {
+                    $desc .= " COMMENT $item[Comment]";
+                }
+                $desc .= " after $name ," . $wrap;
+            }
+            $name = $item['Field'];
+        }
+        if(!empty($desc))
+        {
+            $desc = trim($desc , ','.$wrap);
+            $desc .= ' ;' . $wrap;
+        }
+        echo $desc;
+        unset($desc);
+        unset($tmp1);
+        unset($tmp2);
+        unset($sameFromServer1ToServer2[$key]);
+    }
+}
+
 
 $info = ob_get_contents();
 ob_end_clean();
 
-$fileName = isset($fileName) ? ROOT_PATH . $fileName : ROOT_PATH . 'sql.sql';
-file_put_contents($fileName, $info);
+switch(ENV)
+{
+    case 'cli':
+        echo "\n";
+        echo $info;
+        break;
+    case 'web':
+        echo '<pre>';
+        echo $info;
+        break;
+    default:
+        $fileName = isset($fileName) ? ROOT_PATH . $fileName : ROOT_PATH . 'sql.sql';
+        break;
+}
