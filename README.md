@@ -6,5 +6,6 @@ Simple Database Compare Script.
 
 
 To Do
+
 1 did not carry out strict field comparison, such as the sequence and location of the field.
 2 is not supported by the comparison of the index.
