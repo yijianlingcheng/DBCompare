@@ -194,28 +194,6 @@ else
     {
         $tmp1 = $db1->query("SHOW FULL COLUMNS FROM $value");
         $tmp2 = $db2->query("SHOW FULL COLUMNS FROM $value");
-        if(count($tmp1) < count($tmp2))
-        {
-            $tmpIds = array();
-            foreach($tmp1 as $node => $item)
-            {
-                $tmpIds[] = $item['Field'];
-            }
-            unset($node);
-            unset($node);
-            foreach($tmp2 as $node => $item)
-            {
-                if(!isset($tmpIds[$item['Field']]))
-                {
-                    echo " DROP COLUMN `$item[Field]` ," . $wrap;
-                    unset($tmp2[$node]);
-                }
-            }
-            unset($tmpIds);
-            unset($node);
-            unset($node);
-        }
-        $name = $tmp1[0]['Field'];
         if($tmp1 != $tmp2)
         {
             echo INTERLACED . $wrap;
@@ -223,6 +201,28 @@ else
             echo INTERLACED . $wrap;
             echo "ALTER TABLE `$value` " . $wrap;
         }
+//        if(count($tmp1) < count($tmp2))
+//        {
+//            $tmpIds = array();
+//            foreach($tmp1 as $node => $item)
+//            {
+//                $tmpIds[] = $item['Field'];
+//            }
+//            unset($node);
+//            unset($node);
+//            foreach($tmp2 as $node => $item)
+//            {
+//                if(!isset($tmpIds[$item['Field']]))
+//                {
+//                    echo " DROP COLUMN `$item[Field]` ," . $wrap;
+//                    unset($tmp2[$node]);
+//                }
+//            }
+//            unset($tmpIds);
+//            unset($node);
+//            unset($node);
+//        }
+        $name = $tmp1[0]['Field'];
         $desc = '';
         foreach($tmp1 as $node => $item)
         {
@@ -230,6 +230,7 @@ else
             {
                 if($tmp2[$node] == $item)
                 {
+                    $name = $item['Field'];
                     continue;
                 }
                 else
@@ -243,28 +244,8 @@ else
                         }
                         if($item['Null'] == 'NO')
                         {
-                            $desc .= " NOT NULL DEFAULT $item[Default]";
-                        }
-                        else
-                        {
-                            $desc .= " NULL";
-                        }
-                        if(!empty($item['Comment']))
-                        {
-                            $desc .= " COMMENT $item[Comment]";
-                        }
-                        $desc .= " after $name ," . $wrap;
-                    }
-                    else
-                    {
-                        $desc .= " CHANGE COLUMN `$item[Field]` " . $item['Type'];
-                        if(strpos($item['Type'], 'char') !== false || strpos($item['Type'], 'text') !== false)
-                        {
-                            $desc .= " COLLATE $item[Collation]";
-                        }
-                        if($item['Null'] == 'NO')
-                        {
-                            $desc .= " NOT NULL DEFAULT '$item[Default]'";
+                            $item['Default'] = ($item['Default'] === '') ? '""' : "'". $item['Default'] ."'";
+                            $desc .= " NOT NULL DEFAULT " . $item['Default'];
                         }
                         else
                         {
@@ -275,6 +256,32 @@ else
                             $desc .= " COMMENT '$item[Comment]'";
                         }
                         $desc .= " after `$name` ," . $wrap;
+                        $name = $item['Field'];
+                        continue;
+                    }
+                    else
+                    {
+                        $desc .= " CHANGE COLUMN `$item[Field]` `$item[Field]` " . $item['Type'];
+                        if(strpos($item['Type'], 'char') !== false || strpos($item['Type'], 'text') !== false)
+                        {
+                            $desc .= " COLLATE $item[Collation]";
+                        }
+                        if($item['Null'] == 'NO')
+                        {
+                            $item['Default'] = ($item['Default'] === '') ? '""' : "'". $item['Default'] ."'";
+                            $desc .= " NOT NULL DEFAULT " . $item['Default'];
+                        }
+                        else
+                        {
+                            $desc .= " NULL";
+                        }
+                        if(!empty($item['Comment']))
+                        {
+                            $desc .= " COMMENT '$item[Comment]'";
+                        }
+                        $desc .= " after `$name` ," . $wrap;
+                        $name = $item['Field'];
+                        continue;
                     }
                 }
             }
@@ -287,7 +294,8 @@ else
                 }
                 if($item['Null'] == 'NO')
                 {
-                    $desc .= " NOT NULL DEFAULT $item[Default]";
+                    $item['Default'] = ($item['Default'] === '') ? '""' : "'". $item['Default'] ."'";
+                    $desc .= " NOT NULL DEFAULT " . $item['Default'];
                 }
                 else
                 {
@@ -295,16 +303,17 @@ else
                 }
                 if(!empty($item['Comment']))
                 {
-                    $desc .= " COMMENT $item[Comment]";
+                    $desc .= " COMMENT '$item[Comment]'";
                 }
-                $desc .= " after $name ," . $wrap;
+                $desc .= " after `$name` ," . $wrap;
             }
             $name = $item['Field'];
+            continue;
         }
         if(!empty($desc))
         {
             $desc = trim($desc , ','.$wrap);
-            $desc .= ' ;' . $wrap;
+            $desc .= ';' . $wrap;
         }
         echo $desc;
         unset($desc);
